@@ -1,0 +1,12 @@
+{
+  "name": "com.studio.evolutionidle.content",
+  "version": "0.1.0",
+  "displayName": "Evolution Idle Content",
+  "description": "Typed content catalogs and runtime validation.",
+  "unity": "6000.3",
+  "dependencies": {
+    "com.studio.evolutionidle.core": "0.1.0",
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
+  },
+  "author": { "name": "Evolution Idle Studio" }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "EvolutionIdle.Game",
+  "rootNamespace": "EvolutionIdle.Game",
+  "references": [
+    "EvolutionIdle.Core",
+    "EvolutionIdle.Persistence",
+    "EvolutionIdle.Content",
+    "EvolutionIdle.Integrations"
+  ],
+  "autoReferenced": true
+}

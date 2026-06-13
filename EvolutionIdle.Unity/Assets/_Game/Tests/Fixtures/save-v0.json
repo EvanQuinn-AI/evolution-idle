@@ -1,0 +1,10 @@
+{
+  "SchemaVersion": 0,
+  "ProfileId": "legacy-profile",
+  "Revision": 7,
+  "ContentVersion": "0.0.1",
+  "Currency": { "Significand": 100000000000, "Exponent": -8 },
+  "PrestigeCount": 0,
+  "LastUtcTicks": 638712864000000000,
+  "LastMonotonicSeconds": 0
+}

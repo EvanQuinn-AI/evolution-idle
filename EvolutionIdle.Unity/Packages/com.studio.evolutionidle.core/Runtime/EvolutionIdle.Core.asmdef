@@ -1,0 +1,7 @@
+{
+  "name": "EvolutionIdle.Core",
+  "rootNamespace": "EvolutionIdle.Core",
+  "references": [],
+  "autoReferenced": true,
+  "noEngineReferences": true
+}

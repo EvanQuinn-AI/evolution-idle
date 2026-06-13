@@ -1,0 +1,48 @@
+{
+  "ContentVersion": "0.1.0",
+  "MinimumAppVersion": "0.1.0",
+  "Simulation": {
+    "TicksPerSecond": 10,
+    "MaximumOfflineSeconds": 2592000,
+    "BaseProductionPerSecond": { "Significand": 100000000000, "Exponent": -11, "IsZero": false }
+  },
+  "Upgrades": [
+    {
+      "Id": "cell_division",
+      "NameKey": "upgrade.cell_division.name",
+      "BaseCost": { "Significand": 100000000000, "Exponent": -10, "IsZero": false },
+      "CostGrowth": { "Significand": 115000000000, "Exponent": -11, "IsZero": false },
+      "ProductionMultiplier": { "Significand": 125000000000, "Exponent": -11, "IsZero": false },
+      "PrerequisiteIds": []
+    },
+    {
+      "Id": "mitochondria",
+      "NameKey": "upgrade.mitochondria.name",
+      "BaseCost": { "Significand": 100000000000, "Exponent": -9, "IsZero": false },
+      "CostGrowth": { "Significand": 118000000000, "Exponent": -11, "IsZero": false },
+      "ProductionMultiplier": { "Significand": 150000000000, "Exponent": -11, "IsZero": false },
+      "PrerequisiteIds": ["cell_division"]
+    },
+    {
+      "Id": "multicellular",
+      "NameKey": "upgrade.multicellular.name",
+      "BaseCost": { "Significand": 100000000000, "Exponent": -7, "IsZero": false },
+      "CostGrowth": { "Significand": 125000000000, "Exponent": -11, "IsZero": false },
+      "ProductionMultiplier": { "Significand": 200000000000, "Exponent": -11, "IsZero": false },
+      "PrerequisiteIds": ["mitochondria"]
+    }
+  ],
+  "Prestige": {
+    "MinimumCurrency": { "Significand": 100000000000, "Exponent": -5, "IsZero": false },
+    "StartingCurrency": { "Significand": 0, "Exponent": 0, "IsZero": true },
+    "PreservedUpgradeIds": []
+  },
+  "IdAliases": {},
+  "Tombstones": [],
+  "SourceHashes": {
+    "localization.csv": "a7f62721da562b3d93494ea2500d888a2de20c80891cb93fd31e9f7c0895cda4",
+    "prestige.csv": "e972f5760199081c3f54a95f77f9a79bcaef72d3fff81f9a4966e8ffbd2e2f68",
+    "simulation.csv": "7247e7cdecef34c8247afec029f80e59cdd320801af8e07b0054c2ca2869efda",
+    "upgrades.csv": "2f43d6d88a5cb04b5e9e1699065f817fc4d7ee3e0e68feef84722109161c2537"
+  }
+}

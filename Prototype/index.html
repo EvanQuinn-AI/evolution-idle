@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07130f">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Evolution Idle">
+  <title>Evolution Idle</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="boot-overlay" class="boot-overlay">
+    <canvas id="intro-canvas"></canvas>
+    <div class="boot-content">
+      <div id="boot-logo" class="boot-logo">
+        <img class="boot-logo-mark" src="icon.svg?v=3" alt="" width="96" height="96">
+        <h1>EVOLUTION<span>IDLE</span></h1>
+        <p>From the first atom to the last fossil.</p>
+      </div>
+      <nav id="main-menu" class="main-menu" hidden>
+        <button id="menu-start" class="primary" type="button">Begin Evolution</button>
+        <button id="menu-codex" type="button">Codex</button>
+        <button id="menu-lab" type="button">Checkpoint Lab</button>
+        <button id="menu-admin" type="button">Run with Admin Settings</button>
+        <button id="menu-settings" type="button">Engine Settings</button>
+        <div id="admin-config" class="admin-config" hidden>
+          <label><input id="admin-fast" type="checkbox" checked> Fast simulation (25x rates, rapid events)</label>
+          <label><input id="admin-fresh" type="checkbox"> Start from a fresh save</label>
+          <label class="seed-row">World seed <input id="admin-seed" type="text" inputmode="numeric" placeholder="random"></label>
+          <button id="admin-launch" class="primary" type="button">Launch Admin World</button>
+        </div>
+        <p class="menu-footer">Progress saves locally on this device. Prototype build.</p>
+      </nav>
+    </div>
+    <p id="skip-hint" class="skip-hint">Tap anywhere to skip</p>
+  </div>
+
+  <main class="shell" id="game-shell" hidden>
+    <header class="hud">
+      <div class="hud-world">
+        <span class="hud-era" id="world-title">A Young World</span>
+        <span class="hud-sub">World <span id="world-number">1</span> &middot; Age <span id="world-age">0m</span></span>
+      </div>
+      <div class="hud-resources">
+        <div class="hud-stat" data-res="energy" role="button" tabindex="0"><span class="hud-icon">&#9889;</span><strong id="energy-value">0</strong><small id="energy-rate">+1/sec</small></div>
+        <div class="hud-stat" data-res="adaptation" role="button" tabindex="0"><span class="hud-icon">&#129516;</span><strong id="adaptation-value">0</strong><small id="adaptation-rate">+0/sec</small></div>
+        <div class="hud-stat hud-meta" data-res="memory" role="button" tabindex="0"><span class="hud-icon">&#9851;</span><strong id="memory-total">0</strong></div>
+        <div class="hud-stat hud-meta" data-res="dna" role="button" tabindex="0"><span class="hud-icon">&#129516;</span><strong id="dna-total">0</strong></div>
+        <div class="hud-stat hud-meta" data-res="mutation" role="button" tabindex="0"><span class="hud-icon">&#10022;</span><strong id="mutation-total">0</strong></div>
+        <div class="hud-stat hud-meta" data-res="knowledge" role="button" tabindex="0"><span class="hud-icon">&#128270;</span><strong id="knowledge-total">0</strong></div>
+      </div>
+    </header>
+
+    <div id="fast-badge" class="fast-badge" hidden>FAST PLAYTEST MODE</div>
+
+    <section class="stage-wrap">
+      <canvas id="stage-canvas" aria-label="The world and the creature you currently are. Tap the creature to catalyze energy."></canvas>
+      <div class="stage-overlay">
+        <div class="stage-top">
+          <div class="stage-top-left">
+            <span class="stage-pill" id="stage-biome">Primordial Sea</span>
+            <span class="stage-pill score-pill" id="stage-score" hidden>&#9733; 0</span>
+            <span class="stage-pill ecosystem-pill" id="stage-ecosystem">Karma 100% &middot; Pop 0</span>
+          </div>
+          <div class="stage-top-right">
+            <button id="stage-menu" class="stage-icon-btn" type="button" aria-label="Open menu" title="Menu">&#9776;<span id="menu-badge" class="menu-badge" hidden></span></button>
+            <button id="stage-codex" class="stage-icon-btn" type="button" aria-label="Open Codex" title="Codex">&#128214;</button>
+            <button id="stage-exit" class="stage-icon-btn" type="button" aria-label="Exit to main menu" title="Exit to main menu">&#10005;</button>
+          </div>
+        </div>
+        <div id="stage-pressure" class="stage-pressure" data-res="pressure" role="button" tabindex="0" hidden title="Extinction risk">
+          <span class="pressure-icon">&#9888;</span>
+          <div class="pressure-rail"><div id="stage-pressure-fill" class="pressure-level"></div></div>
+        </div>
+        <div id="stage-resources" class="stage-resources" aria-hidden="true"></div>
+        <button id="stage-evolution" class="stage-evolution" type="button" hidden>
+          <span class="stage-evolution-head"><strong id="stage-evolution-label">Next evolution</strong><small id="stage-evolution-eta">Calculating...</small></span>
+          <span class="stage-evolution-track"><span id="stage-evolution-fill"></span></span>
+          <span class="stage-evolution-foot"><span id="stage-evolution-value">0 / 20 Evolution Energy</span><span id="stage-evolution-rate">+1/sec</span></span>
+        </button>
+        <p class="stage-hint" id="stage-hint">Tap your creature to catalyze energy</p>
+      </div>
+      <div class="stage-action" id="stage-action" hidden>
+        <button id="face-extinction" class="danger" type="button" disabled>Face the Cataclysm</button>
+      </div>
+    </section>
+
+    <div id="drawer-backdrop" class="drawer-backdrop"></div>
+    <div id="panel-drawer" class="panel-drawer">
+    <div class="drawer-handle"><button id="exit-to-menu" class="drawer-exit" type="button">&#8592; Main Menu</button><button id="drawer-close" class="drawer-close" type="button" aria-label="Close menu">&#9662;</button></div>
+    <nav class="tabbar" id="tabbar" role="tablist">
+      <button class="tab active" data-tab="evolve" type="button">Evolve <span class="tab-badge" id="tab-evolve-badge"></span></button>
+      <button class="tab" data-tab="world" type="button">World</button>
+      <button class="tab" data-tab="survive" type="button">Survive <span class="tab-badge crisis-badge" id="tab-survive-badge" hidden>!</span></button>
+    </nav>
+
+    <section class="tab-content">
+      <!-- EVOLVE -->
+      <div class="tab-pane active evolve-pane" data-pane="evolve">
+        <section id="evolution-panel" class="evolution-workspace locked-panel">
+          <canvas id="evolution-map-canvas" aria-label="Interactive tree of life. Drag to pan, scroll to zoom, and select a species for details."></canvas>
+          <header id="origin-panel" class="evolution-origin-card">
+            <p class="eyebrow">ORIGINS</p>
+            <h2 id="origin-title">Build The First Cell</h2>
+            <p id="origin-summary" class="muted">Spark matter into the first living cell.</p>
+            <div class="resource-chain evolution-resource-chain">
+              <article class="resource-card"><div><span>Atoms</span><strong id="atoms-value">0</strong></div><button id="create-atom" type="button">Atom <small>10 Energy</small></button></article>
+              <article class="resource-card"><div><span>Molecules</span><strong id="molecules-value">0</strong></div><button id="create-molecule" type="button">Molecule <small>3 Atoms</small></button></article>
+              <article class="resource-card"><div><span>Organic</span><strong id="organics-value">0</strong></div><button id="create-organic" type="button">Organic <small>3 Molecules</small></button></article>
+              <article class="resource-card"><div><span>Cells</span><strong id="cells-value">0</strong></div><button id="create-cell" type="button">Cell <small>3 Organics</small></button></article>
+            </div>
+          </header>
+          <div class="evolution-checkpoint" id="evolution-checkpoint">
+            <div><span id="checkpoint-label">Next evolution</span><strong id="checkpoint-value">0 / 20 Energy</strong></div>
+            <div class="checkpoint-track"><div id="checkpoint-fill"></div></div>
+          </div>
+          <div class="evolution-map-tools">
+            <span><i class="map-key reached"></i> Living</span>
+            <span><i class="map-key available"></i> Ready</span>
+            <span><i class="map-key revealed"></i> Clue</span>
+            <div class="map-zoom-controls" aria-label="Map view controls">
+              <button id="evolution-zoom-out" type="button" aria-label="Zoom out">&#8722;</button>
+              <button id="evolution-reset" type="button">Focus current</button>
+              <button id="evolution-zoom-in" type="button" aria-label="Zoom in">+</button>
+            </div>
+          </div>
+          <aside id="species-actions" class="evolution-inspector" aria-live="polite">
+            <p class="eyebrow">DIRECTED EVOLUTION</p>
+            <h2>Reachable Life</h2>
+            <p id="evolution-copy" class="muted">Create a Cell to begin biological evolution.</p>
+          </aside>
+        </section>
+      </div>
+
+      <!-- WORLD -->
+      <div class="tab-pane" data-pane="world">
+        <section class="panel world-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">SEEDED WORLD</p>
+              <h2>This World</h2>
+            </div>
+            <span class="world-age">Seed <span id="world-seed">000000</span></span>
+          </div>
+          <div class="world-grid">
+            <div>
+              <span class="mini-label">Available biomes</span>
+              <div id="biome-list" class="chip-list"></div>
+            </div>
+            <div>
+              <span class="mini-label">World conditions</span>
+              <div id="modifier-list" class="chip-list"></div>
+              <button id="reveal-hidden" class="mutation-button" type="button" hidden>Reveal hidden condition <small>1 Mutation Point</small></button>
+            </div>
+          </div>
+          <div class="karma-meter" id="karma-meter">
+            <div class="karma-heading"><div><span class="mini-label">Ecosystem Health</span><strong id="karma-state">Thriving</strong></div><strong id="karma-value">100%</strong></div>
+            <div class="karma-track"><div id="karma-fill"></div><span class="karma-midpoint"></span></div>
+            <p id="karma-copy">Balance producers, herbivores, and predators to keep extinction risk low.</p>
+            <button type="button" id="recommended-action" class="recommended-action" data-action="" hidden></button>
+            <div id="ecosystem-causes" class="ecosystem-causes"></div>
+            <div id="karma-populations" class="karma-populations"></div>
+            <div id="ecosystem-actions" class="ecosystem-actions">
+              <button type="button" class="eco-action" data-action="boostPlants">&#127793; Boost Plants <small>120 Energy</small></button>
+              <button type="button" class="eco-action" data-action="stabilise">&#10052;&#65039; Stabilise <small>80 Adapt</small></button>
+            </div>
+          </div>
+        </section>
+
+        <section id="event-panel" class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">LIVING WORLD</p>
+              <h2>Ecosystem Story</h2>
+            </div>
+            <span id="event-count" class="world-age">0 choices made</span>
+          </div>
+          <div id="event-log" class="event-log"><p class="empty-copy">Life has not started making questionable decisions yet.</p></div>
+        </section>
+
+        <section id="admin-panel" class="panel admin-panel" hidden>
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">ADMIN CONSOLE</p>
+              <h2>Playtest Controls</h2>
+            </div>
+          </div>
+          <div class="admin-grid">
+            <button id="admin-energy" type="button">+1,000 Energy</button>
+            <button id="admin-adaptation" type="button">+500 Adaptation</button>
+            <button id="admin-memory" type="button">+10 Memory</button>
+            <button id="admin-dna" type="button">+10 DNA</button>
+            <button id="admin-mutation" type="button">+10 Mutation</button>
+            <button id="admin-knowledge" type="button">+5 Knowledge</button>
+            <button id="admin-pressure" type="button">Pressure +25%</button>
+            <button id="admin-event" type="button">Trigger Choice Event</button>
+            <button id="admin-reveal" type="button">Reveal Hidden Condition</button>
+            <button id="admin-wipe" class="danger-soft" type="button">Wipe Save &amp; Reload</button>
+          </div>
+        </section>
+      </div>
+
+      <!-- SURVIVE -->
+      <div class="tab-pane" data-pane="survive">
+        <section id="extinction-panel" class="panel extinction-panel locked-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">EXTINCTION FORECAST</p>
+              <h2 id="extinction-name">Unknown Catastrophe</h2>
+            </div>
+            <div class="threat-readout"><strong id="pressure-value">0%</strong><span id="threat-stage">Stable</span></div>
+          </div>
+          <div class="pressure-track"><div id="pressure-fill"></div></div>
+          <p id="extinction-copy" class="muted">Biological complexity will eventually destabilize the world.</p>
+          <button id="vent-pressure" class="mutation-button" type="button" hidden>Vent pressure (-15%) <small>2 Mutation Points</small></button>
+          <div id="preparation-actions" class="preparation-actions"></div>
+        </section>
+      </div>
+
+    </section>
+    </div>
+
+    <div id="resource-info" class="resource-info" hidden></div>
+  </main>
+
+  <section id="codex-screen" class="codex-screen" hidden aria-label="Codex">
+    <header class="codex-header">
+      <button id="codex-exit" class="codex-back" type="button">&#8592; Main Menu</button>
+      <h1>Codex</h1>
+      <span class="codex-spacer"></span>
+    </header>
+    <div class="codex-subtabs" id="codex-subtabs">
+      <button class="codex-subtab active" data-codex="atlas" type="button">Species Atlas <small id="collection-total">0 / 33</small></button>
+      <button class="codex-subtab" data-codex="achievements" type="button">Achievements <small id="achievement-progress">0 / 0</small></button>
+      <button class="codex-subtab" data-codex="leaderboard" type="button">Records</button>
+    </div>
+    <div class="codex-body">
+      <section class="atlas-panel codex-view active" data-codex-view="atlas">
+        <div class="atlas-toolbar">
+          <input id="atlas-search" type="search" placeholder="Search known species" aria-label="Search species">
+          <select id="atlas-state-filter" aria-label="Filter species state">
+            <option value="all">All states</option>
+            <option value="discovered">Discovered</option>
+            <option value="missing">Missing</option>
+            <option value="reachable">Reachable now</option>
+            <option value="survivor">Extinction survivors</option>
+          </select>
+          <div class="completion-ring"><strong id="completion-percent">0%</strong></div>
+        </div>
+        <div id="atlas-tabs" class="atlas-tabs"></div>
+        <div class="album-summary"><strong id="album-progress">0 / 33</strong><span id="album-description">Every named lifeform.</span></div>
+        <div id="encyclopedia-grid" class="encyclopedia-grid" aria-live="polite"></div>
+      </section>
+
+      <section class="codex-view" data-codex-view="achievements">
+        <div id="achievement-grid" class="achievement-grid"></div>
+      </section>
+
+      <section class="codex-view" data-codex-view="leaderboard">
+        <div class="codex-records-head"><span>Hall of Records</span><div class="threat-readout"><strong id="best-score">0</strong><span>Best score</span></div></div>
+        <ol id="leaderboard-list" class="leaderboard-list"><li class="empty-copy">Survive an extinction to set your first record.</li></ol>
+      </section>
+    </div>
+  </section>
+
+  <section id="lab-screen" class="lab-screen" hidden aria-label="Checkpoint Lab">
+    <header class="codex-header">
+      <button id="lab-exit" class="codex-back" type="button">&#8592; Main Menu</button>
+      <h1>Checkpoint Lab</h1>
+      <span class="codex-spacer"></span>
+    </header>
+    <div class="lab-body">
+      <div class="lab-intro">
+        <p class="eyebrow">BETWEEN WORLDS</p>
+        <h2>Carry evolution forward</h2>
+        <p>Spend extinction rewards on permanent checkpoints and lineage upgrades. Time in the active world is paused while the Lab is open.</p>
+        <div class="lab-balances">
+          <div><span>Evolution Memory</span><strong id="lab-memory-total">0</strong></div>
+          <div><span>DNA Fragments</span><strong id="lab-dna-total">0</strong></div>
+        </div>
+      </div>
+      <section class="panel meta-panel lab-checkpoints">
+        <div class="meta-row">
+          <div>
+            <p class="eyebrow">ORIGIN CHECKPOINT</p>
+            <h2>Cellular Origin</h2>
+            <p id="origin-checkpoint-copy">Master early life to begin future worlds at the Cellular Origin.</p>
+          </div>
+          <button id="unlock-cellular" type="button">Unlock Cellular Origin <small>12 Memory</small></button>
+        </div>
+        <div class="meta-divider">
+          <p class="eyebrow">GENOME LAB</p>
+          <p class="muted">Spend DNA Fragments on permanent lineage upgrades.</p>
+          <div id="genome-shop" class="genome-shop"></div>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <div id="achievement-toast" class="achievement-toast" hidden>
+    <span class="toast-icon">&#9733;</span>
+    <div><strong id="toast-name">Achievement</strong><small id="toast-desc"></small></div>
+  </div>
+
+  <dialog id="settings-dialog" class="settings-dialog">
+    <button id="close-settings" class="icon-button" type="button" aria-label="Close">x</button>
+    <p class="eyebrow">ENGINE SETTINGS</p>
+    <h2>Engine Settings</h2>
+    <div class="settings-group">
+      <h3>Audio</h3>
+      <label class="setting-row"><span>Music</span><input id="setting-music" type="checkbox"></label>
+      <label class="setting-row"><span>Music volume</span><input id="setting-music-volume" type="range" min="0" max="100" step="5"></label>
+      <label class="setting-row"><span>Sound effects</span><input id="setting-audio" type="checkbox"></label>
+      <label class="setting-row"><span>Effects volume</span><input id="setting-volume" type="range" min="0" max="100" step="5"></label>
+      <label class="setting-row"><span>Haptic feedback (mobile)</span><input id="setting-haptics" type="checkbox"></label>
+    </div>
+    <div class="settings-group">
+      <h3>Display &amp; Motion</h3>
+      <label class="setting-row"><span>Reduced motion</span><input id="setting-reduced-motion" type="checkbox"></label>
+      <label class="setting-row"><span>Skip intro animation</span><input id="setting-skip-intro" type="checkbox"></label>
+      <label class="setting-row"><span>Large text</span><input id="setting-large-text" type="checkbox"></label>
+      <label class="setting-row"><span>Battery saver (slower UI updates)</span><input id="setting-performance" type="checkbox"></label>
+    </div>
+    <div class="settings-group">
+      <h3>Save Data</h3>
+      <div class="settings-actions">
+        <button id="setting-export" type="button">Export Save</button>
+        <label class="file-button">Import Save<input id="setting-import" type="file" accept=".json,application/json"></label>
+        <button id="setting-wipe" class="danger-soft" type="button">Wipe Save</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="discovery-dialog" class="discovery-dialog">
+    <p id="discovery-kicker" class="eyebrow">NEW SPECIES DISCOVERED</p>
+    <div id="discovery-glyph" class="discovery-glyph">BA</div>
+    <h2 id="discovery-name">Bacteria</h2>
+    <p id="discovery-meta" class="rarity">Common / Microbial</p>
+    <p id="discovery-fact"></p>
+    <div class="dialog-progress">Species Atlas <strong id="dialog-total">1 / 30</strong></div>
+    <p id="new-clue" class="new-clue"></p>
+    <button id="close-discovery" class="primary" type="button">Continue</button>
+  </dialog>
+
+  <dialog id="entry-dialog" class="entry-dialog">
+    <button id="close-entry" class="icon-button" type="button" aria-label="Close">x</button>
+    <p id="entry-number" class="eyebrow">SPECIES 001</p>
+    <div id="entry-glyph" class="entry-glyph">?</div>
+    <h2 id="entry-name">Unknown Species</h2>
+    <p id="entry-status" class="rarity"></p>
+    <p id="entry-description"></p>
+    <div id="entry-albums" class="chip-list"></div>
+    <div id="entry-route" class="route-box"></div>
+    <div id="entry-stamps" class="stamp-list"></div>
+  </dialog>
+
+  <div id="decision-card" class="decision-card" role="dialog" aria-live="polite" hidden>
+    <span class="decision-handle"></span>
+    <p class="eyebrow">ECOSYSTEM DECISION</p>
+    <h2 id="decision-title">Something Happened</h2>
+    <p id="decision-copy"></p>
+    <div id="decision-options" class="decision-options"></div>
+  </div>
+
+  <dialog id="extinction-dialog" class="extinction-dialog">
+    <p class="eyebrow">FOSSIL RECORD COMPLETE</p>
+    <h2 id="extinction-dialog-title">Asteroid Impact</h2>
+    <div class="impact-mark" id="impact-mark">100%</div>
+    <p>Populations collapse. Discovery remains permanent.</p>
+    <div class="extinction-summary">
+      <div><span>Species reached</span><strong id="run-discovery-count">0</strong></div>
+      <div><span>New species</span><strong id="new-discovery-count">0</strong></div>
+      <div><span>Survivors</span><strong id="survivor-count">0</strong></div>
+      <div><span>Score</span><strong id="run-score">0</strong></div>
+    </div>
+    <div id="reward-list" class="reward-list"></div>
+    <div class="meta-divider">
+      <p class="eyebrow">GENOME LAB</p>
+      <div id="extinction-genome" class="genome-shop"></div>
+    </div>
+    <label class="fossil-select">Preserve one fossil legacy<select id="fossil-species"></select></label>
+    <div id="origin-choice" class="origin-choice"></div>
+    <button id="begin-next-run" class="primary" type="button">Begin Next World</button>
+  </dialog>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+# Unity
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+MemoryCaptures/
+Recordings/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.csproj
+*.sln
+*.suo
+*.user
+*.userprefs
+
+# Build tooling
+Tools/**/bin/
+Tools/**/obj/
+TestResults/
+artifacts/
+
+# Platform
+.DS_Store
+Thumbs.db
+*.keystore
+*.p12
+*.mobileprovision

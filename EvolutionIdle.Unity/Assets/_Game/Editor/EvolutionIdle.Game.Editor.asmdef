@@ -1,0 +1,7 @@
+{
+  "name": "EvolutionIdle.Game.Editor",
+  "rootNamespace": "EvolutionIdle.Game.Editor",
+  "references": ["EvolutionIdle.Game"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": true
+}

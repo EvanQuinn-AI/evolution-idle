@@ -1,0 +1,64 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+jobs:
+  content:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Compile and validate content
+        run: >-
+          dotnet run --project Tools/ContentCompiler --
+          --input Content/SheetsExport
+          --output /tmp/base.catalog.json
+          --ids-output /tmp/ContentIds.cs
+          --schema Content/Schemas/catalog.schema.json
+      - name: Ensure generated content is committed
+        run: |
+          jq -S . /tmp/base.catalog.json > /tmp/generated.sorted.json
+          jq -S . Content/Catalogs/base.catalog.json > /tmp/committed.sorted.json
+          jq -S . EvolutionIdle.Unity/Assets/StreamingAssets/Content/base.catalog.json > /tmp/unity.sorted.json
+          diff -u /tmp/generated.sorted.json /tmp/committed.sorted.json
+          diff -u /tmp/generated.sorted.json /tmp/unity.sorted.json
+          diff -u /tmp/ContentIds.cs EvolutionIdle.Unity/Packages/com.studio.evolutionidle.content/Runtime/Generated/ContentIds.cs
+
+  architecture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet build Tools/ArchitectureVerification/ArchitectureVerification.csproj --configuration Release
+
+  unity-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: EvolutionIdle.Unity
+          unityVersion: 6000.3.0f1
+          testMode: EditMode
+          artifactsPath: TestResults
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unity-test-results
+          path: TestResults

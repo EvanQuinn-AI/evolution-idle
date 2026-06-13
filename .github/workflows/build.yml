@@ -1,0 +1,57 @@
+name: Platform Builds
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 2 * * *"
+
+jobs:
+  build-windows-android:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [StandaloneWindows64, Android]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: EvolutionIdle.Unity
+          unityVersion: 6000.3.0f1
+          targetPlatform: ${{ matrix.target }}
+          buildsPath: artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: artifacts
+
+  build-apple:
+    runs-on: [self-hosted, macOS, evolution-idle-build]
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [StandaloneOSX, iOS]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Build with installed Unity
+        env:
+          BUILD_TARGET: ${{ matrix.target }}
+          BUILD_OUTPUT: Build/${{ matrix.target }}
+        run: >-
+          /Applications/Unity/Hub/Editor/6000.3.0f1/Unity.app/Contents/MacOS/Unity
+          -batchmode -nographics -quit
+          -projectPath EvolutionIdle.Unity
+          -executeMethod EvolutionIdle.Game.Editor.CommandLineBuild.Build
+          -logFile -
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: Build/${{ matrix.target }}

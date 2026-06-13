@@ -1,0 +1,10 @@
+{
+  "name": "EvolutionIdle.Content",
+  "rootNamespace": "EvolutionIdle.Content",
+  "references": [
+    "EvolutionIdle.Core",
+    "Unity.Newtonsoft.Json"
+  ],
+  "autoReferenced": true,
+  "noEngineReferences": true
+}

@@ -1,0 +1,4 @@
+id,nameKey,baseCost,costGrowth,productionMultiplier,prerequisiteIds
+cell_division,upgrade.cell_division.name,10,1.15,1.25,
+mitochondria,upgrade.mitochondria.name,100,1.18,1.5,cell_division
+multicellular,upgrade.multicellular.name,10000,1.25,2,mitochondria

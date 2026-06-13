@@ -1,0 +1,18 @@
+{
+  "name": "Evolution Idle",
+  "short_name": "Evolution",
+  "description": "Build a world. Discover its life. Leave a fossil record.",
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#030806",
+  "theme_color": "#07130f",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

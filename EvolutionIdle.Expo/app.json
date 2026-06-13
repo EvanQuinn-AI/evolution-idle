@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Evolution Idle",
+    "slug": "evolution-idle",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#03100c",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#03100c"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "android": {
+      "usesCleartextTraffic": true
+    },
+    "scheme": "evolutionidle"
+  }
+}

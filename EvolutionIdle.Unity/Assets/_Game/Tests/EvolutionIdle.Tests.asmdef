@@ -1,0 +1,14 @@
+{
+  "name": "EvolutionIdle.Tests",
+  "rootNamespace": "EvolutionIdle.Tests",
+  "references": [
+    "EvolutionIdle.Core",
+    "EvolutionIdle.Persistence",
+    "EvolutionIdle.Content",
+    "EvolutionIdle.Integrations",
+    "Unity.Newtonsoft.Json"
+  ],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "autoReferenced": false
+}

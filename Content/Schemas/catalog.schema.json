@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Evolution Idle Content Catalog",
+  "type": "object",
+  "required": ["ContentVersion", "MinimumAppVersion", "Simulation", "Upgrades", "Prestige", "SourceHashes"],
+  "properties": {
+    "ContentVersion": { "type": "string", "minLength": 1 },
+    "MinimumAppVersion": { "type": "string", "minLength": 1 },
+    "Simulation": {
+      "type": "object",
+      "required": ["TicksPerSecond", "MaximumOfflineSeconds", "BaseProductionPerSecond"],
+      "properties": {
+        "TicksPerSecond": { "type": "integer", "minimum": 1, "maximum": 60 },
+        "MaximumOfflineSeconds": { "type": "integer", "minimum": 0 },
+        "BaseProductionPerSecond": { "$ref": "#/$defs/bigValue" }
+      }
+    },
+    "Upgrades": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["Id", "NameKey", "BaseCost", "CostGrowth", "ProductionMultiplier", "PrerequisiteIds"],
+        "properties": {
+          "Id": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]*$" },
+          "NameKey": { "type": "string", "minLength": 1 },
+          "BaseCost": { "$ref": "#/$defs/bigValue" },
+          "CostGrowth": { "$ref": "#/$defs/bigValue" },
+          "ProductionMultiplier": { "$ref": "#/$defs/bigValue" },
+          "PrerequisiteIds": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "Prestige": {
+      "type": "object",
+      "required": ["MinimumCurrency", "StartingCurrency", "PreservedUpgradeIds"],
+      "properties": {
+        "MinimumCurrency": { "$ref": "#/$defs/bigValue" },
+        "StartingCurrency": { "$ref": "#/$defs/bigValue" },
+        "PreservedUpgradeIds": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "IdAliases": { "type": "object", "additionalProperties": { "type": "string" } },
+    "Tombstones": { "type": "array", "items": { "type": "string" } },
+    "SourceHashes": { "type": "object", "additionalProperties": { "type": "string" } }
+  },
+  "$defs": {
+    "bigValue": {
+      "type": "object",
+      "required": ["Significand", "Exponent"],
+      "properties": {
+        "Significand": { "type": "integer" },
+        "Exponent": { "type": "integer" }
+      }
+    }
+  }
+}

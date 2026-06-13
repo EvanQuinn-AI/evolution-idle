@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Evolution Idle orbital seed">
+  <defs>
+    <linearGradient id="orbit-gradient" x1="18" y1="22" x2="108" y2="104" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7ad8ff"/>
+      <stop offset=".48" stop-color="#67ef9a"/>
+      <stop offset="1" stop-color="#ffc857"/>
+    </linearGradient>
+    <filter id="soft-glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="2.8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <style>
+    .orbit-a { transform-origin: 64px 64px; animation: orbit-a 10s linear infinite; }
+    .orbit-b { transform-origin: 64px 64px; animation: orbit-b 7s linear infinite; }
+    .spark { animation: spark 2.4s ease-in-out infinite; }
+    .spark-b { animation-delay: -1.2s; }
+    @keyframes orbit-a { to { transform: rotate(360deg); } }
+    @keyframes orbit-b { to { transform: rotate(-360deg); } }
+    @keyframes spark { 50% { opacity: .35; } }
+    @media (prefers-reduced-motion: reduce) {
+      .orbit-a, .orbit-b, .spark { animation: none; }
+    }
+  </style>
+
+  <circle cx="64" cy="64" r="48" fill="none" stroke="#67ef9a" stroke-opacity=".08" stroke-width="1"/>
+
+  <g class="orbit-a">
+    <circle cx="64" cy="64" r="43" fill="none" stroke="#164d31" stroke-opacity=".9" stroke-width="2.5"/>
+    <circle cx="64" cy="64" r="43" fill="none" stroke="url(#orbit-gradient)" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="118 46 34 72"/>
+    <circle class="spark" cx="102" cy="44" r="4.5" fill="#7ad8ff" filter="url(#soft-glow)"/>
+    <circle class="spark spark-b" cx="29" cy="89" r="3.5" fill="#ffc857" filter="url(#soft-glow)"/>
+  </g>
+
+  <g transform="rotate(-32 64 64)">
+    <g class="orbit-b">
+      <ellipse cx="64" cy="64" rx="27" ry="46" fill="none" stroke="#67ef9a" stroke-opacity=".2" stroke-width="1.5"/>
+      <ellipse cx="64" cy="64" rx="27" ry="46" fill="none" stroke="#67ef9a" stroke-width="2" stroke-linecap="round" stroke-dasharray="48 34 18 75"/>
+    </g>
+  </g>
+
+  <g fill="none" stroke-linecap="round">
+    <path d="M49 82C48 69 55 58 68 48C74 43 78 38 79 31" stroke="#7ad8ff" stroke-width="3.2"/>
+    <path d="M79 82C80 69 73 58 60 48C54 43 50 38 49 31" stroke="#67ef9a" stroke-width="3.2"/>
+    <path d="M52 38H76M55 49H73M55 60H73M52 72H76" stroke="#d5ffe4" stroke-opacity=".58" stroke-width="1.5"/>
+  </g>
+</svg>

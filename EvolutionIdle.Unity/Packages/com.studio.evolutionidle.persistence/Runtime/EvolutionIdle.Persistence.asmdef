@@ -1,0 +1,10 @@
+{
+  "name": "EvolutionIdle.Persistence",
+  "rootNamespace": "EvolutionIdle.Persistence",
+  "references": [
+    "EvolutionIdle.Core",
+    "Unity.Newtonsoft.Json"
+  ],
+  "autoReferenced": true,
+  "noEngineReferences": true
+}
