@@ -221,9 +221,10 @@ export function createEvolutionMap(canvas, species, { onSelect = () => {} } = {}
     context.fillText(trimText(context, title, 100), left + 58, top + 23);
     context.fillStyle = palette.subtext;
     context.font = "10px Inter, system-ui, sans-serif";
+    const population = state?.populations.get(definition.id) || 0;
     const subtitle = status.state === "reached"
-      ? `Population ${state.populations.get(definition.id) || 1}`
-      : `${definition.cost} Evolution Energy`;
+      ? population > 0 ? `Population ${population < 10 ? population.toFixed(1) : Math.round(population)}` : "Locally extinct"
+      : `${state?.speciesEvolutionCost(definition.id) ?? definition.cost} Evolution Energy`;
     context.fillText(trimText(context, subtitle, 96), left + 58, top + 41);
   }
 

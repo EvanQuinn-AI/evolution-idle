@@ -7,17 +7,46 @@ const RATE = 0.75;
 
 export function createMusic(getSettings) {
   let element = null;
+  let shouldPlay = false;
+  let restarting = false;
 
   function ensure() {
     if (element) return element;
     element = new Audio(TRACK);
-    element.loop = true;
+    // iOS WebViews can silently stop at the end of M4A files even when the
+    // native loop flag is set, especially at a non-1 playback rate. Loop
+    // explicitly so the same path works in Expo Go and ordinary browsers.
+    element.loop = false;
     element.preload = "auto";
+    element.playsInline = true;
     element.id = "soundtrack";
+    element.addEventListener("ended", restart);
+    element.addEventListener("timeupdate", () => {
+      if (shouldPlay && Number.isFinite(element.duration) && element.duration > 0
+        && element.currentTime >= element.duration - 0.08) restart();
+    });
+    element.addEventListener("loadedmetadata", setRate);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && shouldPlay) start();
+    });
+    window.addEventListener("pageshow", () => { if (shouldPlay) start(); });
     if (document.body) document.body.appendChild(element);
     setRate();
     apply();
     return element;
+  }
+
+  function restart() {
+    if (!element || !shouldPlay || restarting || !getSettings().musicEnabled) return;
+    restarting = true;
+    try { element.currentTime = 0; } catch { /* metadata may still be settling */ }
+    setRate();
+    const promise = element.play();
+    if (promise && promise.then) promise.then(
+      () => { restarting = false; },
+      () => { restarting = false; }
+    );
+    else restarting = false;
   }
 
   function setRate() {
@@ -39,6 +68,7 @@ export function createMusic(getSettings) {
   function start() {
     const settings = getSettings();
     if (!settings.musicEnabled) { stop(); return; }
+    shouldPlay = true;
     ensure();
     apply();
     setRate();
@@ -49,6 +79,7 @@ export function createMusic(getSettings) {
   }
 
   function stop() {
+    shouldPlay = false;
     if (element) element.pause();
   }
 

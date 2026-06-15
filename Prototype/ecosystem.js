@@ -27,7 +27,10 @@ const ECOLOGY_OVERRIDES = {
   parasitic_fungus: { role: ROLE.CARNIVORE }, // a fungus that hunts insects
   amphibian: { role: ROLE.OMNIVORE }, // eats insects as well as algae
   whale: { role: ROLE.OMNIVORE, preyValue: 2.4 }, // huge: grazes small prey, rich carcass
+  lungfish: { role: ROLE.OMNIVORE },
+  synapsid: { role: ROLE.OMNIVORE },
   primate: { role: ROLE.OMNIVORE },
+  ape: { role: ROLE.OMNIVORE },
   human: { role: ROLE.OMNIVORE },
   bird: { role: ROLE.OMNIVORE }
 };
@@ -52,14 +55,14 @@ const ROLE_BASE = {
 const PRODUCER_BIOMASS = 7;     // each producer head lifts a biome's effective plant cap
 const PLANT_REGEN = 0.05;       // base fraction/sec flora relaxes toward capacity
 const DECOMPOSER_NEED = 0.5;    // detritus consumed per decomposer head/sec
-const STARVE_RATE = 0.26;       // punishing: a starving species sheds up to this fraction/sec
-const MAX_DECLINE = 0.55;       // never remove more than this fraction of a pop in one step
-const PREDATION_CEILING = 0.22; // predators can take at most this share of prey biomass/step
+const STARVE_RATE = 0.11;       // slow enough to leave time for an idle player to intervene
+const MAX_DECLINE = 0.30;       // prevent abrupt population collapse in one simulation step
+const PREDATION_CEILING = 0.14; // predators thin prey without erasing a lineage immediately
 const PRED_EFFICIENCY = 0.30;   // predator carrying capacity per unit of prey biomass (ratio-dependent)
 const DETRITUS_DECAY = 0.04;
 const FERTILITY_DECAY = 0.03;
 const FERTILITY_YIELD = 0.5;   // detritus converted by decomposers becomes soil fertility
-const EXTINCTION_GRACE = 18;   // seconds below minViable before a local extinction fires
+const EXTINCTION_GRACE = 45;   // sustained decline is required before local extinction fires
 const MIN_VIABLE = 0.45;
 const EXTINCTION_SHOCK = 16;   // health hit (and pressure spike seed) when a species is lost
 const MAX_ECO_STEP = 6;        // bound a single update so huge offline gaps cannot blow up
@@ -109,7 +112,8 @@ export function defaultBiomeState(biomeId, capacityScale = 1) {
 
 // World richness multiplier from visible modifiers (reuses their production field).
 export function capacityScale(game) {
-  return (game.visibleModifiers || []).reduce((value, modifier) => value * (modifier.production || 1), 1);
+  const worldFeatureScale = 1 + (game.worldFeatures?.habitat || 0) * 0.2;
+  return (game.visibleModifiers || []).reduce((value, modifier) => value * (modifier.production || 1), worldFeatureScale);
 }
 
 // Advance the whole food web by `dt` seconds. Mutates game.populations,
@@ -241,6 +245,8 @@ function simulateBiome(game, biomeId, state, members, dt, trend, causes, summary
       next -= next * decline;
     }
     next = Math.max(0, next);
+    const stewardship = game.worldFeatures?.stewardship || 0;
+    if (stewardship > 0) next = m.start + (next - m.start) * (1 - stewardship * 0.08);
 
     const deathCount = Math.max(0, m.pop - next);
     deaths += deathCount;
@@ -256,6 +262,7 @@ function simulateBiome(game, biomeId, state, members, dt, trend, causes, summary
       game.extinctionGrace[m.id] = (game.extinctionGrace[m.id] || 0) + dt;
       if (game.extinctionGrace[m.id] >= EXTINCTION_GRACE) {
         game.populations.delete(m.id);
+        game.reconcileActiveSpecies?.();
         delete game.extinctionGrace[m.id];
         state.detritus += m.pop * (m.eco.preyValue || 0.5);
         game.extinctionShock = (game.extinctionShock || 0) + EXTINCTION_SHOCK;

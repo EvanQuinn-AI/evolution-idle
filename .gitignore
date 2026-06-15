@@ -24,6 +24,9 @@ Tools/**/bin/
 Tools/**/obj/
 TestResults/
 artifacts/
+node_modules/
+.expo/
+dist/
 
 # Platform
 .DS_Store

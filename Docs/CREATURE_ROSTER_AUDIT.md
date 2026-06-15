@@ -1,5 +1,7 @@
 # Existing Creature Roster Audit
 
+> June 2026 update: the browser progression roster now contains 41 forms. Eight of the bridge forms recommended below have been implemented in the prototype: Choanoflagellate, Jawless Fish, Lungfish, Synapsid, Feathered Theropod, Great Ape, Post-Human, and Voidborn. The original 33 IDs remain intact for save compatibility.
+
 ## Executive Assessment
 
 The current 33-species roster is a good progression prototype but not yet a production visual roster. Its strongest quality is broad coverage from cellular life to space. Its main weakness is that many entries are taxonomic labels rather than designed characters.
@@ -256,4 +258,3 @@ The first five-form slice is approved only if:
 - The complete scene meets target frame time on a representative low-tier Android device.
 - High and low Karma states alter presentation without changing species identity.
 - No bespoke material instance or species-specific animator controller is required.
-

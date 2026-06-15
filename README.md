@@ -24,3 +24,15 @@ The domain package deliberately has no Unity, storage, networking, analytics, or
 5. Enter Play Mode. `GameBootstrap` creates the technical-prototype UI without requiring a scene.
 
 See `Docs/ARCHITECTURE.md` for boundaries, `Docs/GAME_DESIGN.md` for the encyclopedia-first gameplay specification, `Docs/CREATURE_ART_DIRECTION.md` for the scalable visual and Unity asset pipeline, `Docs/CREATURE_ROSTER_AUDIT.md` for current-roster redesign priorities, `Docs/TOMORROW_PROTOTYPE.md` for the one-day fun test, and `Docs/ROADMAP.md` for delivery phases.
+
+## Test on a phone
+
+Install Expo Go on your phone, connect the phone and computer to the same Wi-Fi,
+then double-click `run-phone.cmd` or run it from PowerShell:
+
+```powershell
+.\run-phone.cmd
+```
+
+The launcher installs missing dependencies, starts the prototype server, and
+shows an Expo QR code. Press Ctrl+C when finished.

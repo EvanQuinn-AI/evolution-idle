@@ -10,6 +10,7 @@ const DEFAULT_SETTINGS = {
   reducedMotion: typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches,
   skipIntro: false,
   performanceMode: false,
+  wildlifeArt: true,
   largeText: false,
   admin: { fast: true, seed: "" }
 };
@@ -50,6 +51,7 @@ export function initSettingsDialog({ settings, onChange, onWipeSave, onExportSav
     $("setting-reduced-motion").checked = settings.reducedMotion;
     $("setting-skip-intro").checked = settings.skipIntro;
     $("setting-performance").checked = settings.performanceMode;
+    $("setting-wildlife-art").checked = settings.wildlifeArt !== false;
     $("setting-large-text").checked = settings.largeText;
   };
 
@@ -67,6 +69,7 @@ export function initSettingsDialog({ settings, onChange, onWipeSave, onExportSav
   $("setting-reduced-motion").addEventListener("change", event => { settings.reducedMotion = event.target.checked; commit(); });
   $("setting-skip-intro").addEventListener("change", event => { settings.skipIntro = event.target.checked; commit(); });
   $("setting-performance").addEventListener("change", event => { settings.performanceMode = event.target.checked; commit(); });
+  $("setting-wildlife-art").addEventListener("change", event => { settings.wildlifeArt = event.target.checked; commit(); });
   $("setting-large-text").addEventListener("change", event => { settings.largeText = event.target.checked; commit(); });
   $("setting-export").addEventListener("click", () => onExportSave?.());
   $("setting-import").addEventListener("change", event => {
@@ -244,7 +247,10 @@ export function bootSequence({ settings, hasSave, audio, onStart }) {
       if (elapsed >= 2.4) setPhase("collapse");
     } else if (phase === "collapse") {
       drawStars(time, 0.55);
-      const progress = Math.min(1, elapsed / 0.8);
+      // A resize can briefly pair a zero-sized canvas with an rAF timestamp a
+      // few milliseconds older than phaseStart. Clamp both ends so Canvas never
+      // receives a negative ring radius during that transition frame.
+      const progress = Math.max(0, Math.min(1, elapsed / 0.8));
       const radius = Math.min(width, height) * 0.085 * (1 - progress);
       const burst = Math.sin(progress * Math.PI);
       context.fillStyle = "#000";

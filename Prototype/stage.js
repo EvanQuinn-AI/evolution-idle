@@ -1,10 +1,14 @@
-// The living stage: a canvas that paints the world you live in and the creature
-// you currently are, and turns the central "catalyze" action into tapping that
-// creature. Everything is procedurally drawn so the build stays asset-free and
-// loads instantly on iOS, Android, and desktop browsers.
+import { SPECIES_BY_ID } from "./content.js";
+import { creatureForSpecies } from "./creatures.js";
+import { createWildlifeLayer } from "./wildlife-stage.js";
+
+// The living stage: the illustrated wildlife layer handles collectible animals
+// and habitat dioramas; this procedural renderer remains the origin/load-failure
+// fallback. Both preserve the same tap-to-catalyze interaction contract.
 
 export function createStage(canvas, { getSettings = () => ({}), onTapCreature = () => {} } = {}) {
   const ctx = canvas.getContext("2d");
+  const wildlife = createWildlifeLayer(canvas, { getSettings });
   let width = 0;
   let height = 0;
   let dpr = 1;
@@ -20,6 +24,7 @@ export function createStage(canvas, { getSettings = () => ({}), onTapCreature = 
   let totalPopulation = 0;
   let diversity = 0;
   let activePopulation = 0;
+  let backgroundSpecies = [];
   let worldEnded = false;
 
   // Transient feel layers.
@@ -30,7 +35,11 @@ export function createStage(canvas, { getSettings = () => ({}), onTapCreature = 
   let ripple = 0;          // expanding tap ring, 0..1
   let flashCreature = 0;   // brief palette flash on tap
   let cataclysm = null;    // { type, time } while an extinction plays
+  let celebration = null;  // { time, color } while a collect celebration plays
   let shakeUntil = 0;
+  let combo = 0;           // rapid-tap streak, amplifies the feel
+  let lastTapTime = -10;   // value of t at the previous tap
+  let evolveReady = false; // an evolution choice is available -> invite the eye
 
   function reduced() { return Boolean(getSettings().reducedMotion); }
   function performance_() { return Boolean(getSettings().performanceMode); }
@@ -42,6 +51,7 @@ export function createStage(canvas, { getSettings = () => ({}), onTapCreature = 
     canvas.width = Math.max(1, Math.floor(width * dpr));
     canvas.height = Math.max(1, Math.floor(height * dpr));
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    wildlife.resize(width, height);
     seedMotes();
   }
 
@@ -61,6 +71,7 @@ export function createStage(canvas, { getSettings = () => ({}), onTapCreature = 
 
   // ---- public sync -------------------------------------------------------
   function update(state) {
+    wildlife.update(state);
     scene = state.currentScene;
     creature = state.currentCreature;
     pressure = state.pressure || 0;
@@ -68,34 +79,119 @@ export function createStage(canvas, { getSettings = () => ({}), onTapCreature = 
     totalPopulation = [...state.populations.values()].reduce((sum, value) => sum + value, 0);
     diversity = state.populations.size;
     activePopulation = state.activeLineageId ? state.populations.get(state.activeLineageId) || 0 : 0;
+    backgroundSpecies = [...state.populations.entries()]
+      .filter(([id, population]) => population > 0 && SPECIES_BY_ID[id])
+      .map(([id, population]) => ({ population, profile: creatureForSpecies(SPECIES_BY_ID[id]) }));
     worldEnded = Boolean(state.worldEnded);
     const key = `${creature.kind}:${creature.id}`;
     if (key !== creatureKey) {
       creatureKey = key;
       flashCreature = 1; // a soft pop whenever you become something new
     }
+    evolveReady = !worldEnded && typeof state.evolutionChoices === "function"
+      && state.evolutionChoices().some(choice => choice.state === "available");
   }
 
-  function tap() {
-    squash = 1;
+  // info (optional): { text, kind: "energy" | "pop", denied } from the catalyze
+  // action, so the floating number and color match what the tap actually did.
+  function tap(info = {}) {
+    if (info.denied) {
+      // A rejected tap gets a small, distinct nudge rather than the full burst.
+      flashCreature = Math.max(flashCreature, 0.25);
+      if (!reduced()) shakeUntil = Math.max(shakeUntil, t + 0.16);
+      combo = 0;
+      return;
+    }
+    combo = (t - lastTapTime < 0.6) ? combo + 1 : 1;
+    lastTapTime = t;
+    const intensity = Math.min(1.8, 0.9 + combo * 0.07);
+    squash = Math.min(1.5, intensity);
     ripple = 0.001;
     flashCreature = Math.max(flashCreature, 0.6);
+    wildlife.react();
     const cx = width / 2;
     const cy = creatureY();
-    const count = reduced() ? 3 : 8;
+    const sparkColor = info.kind === "pop" ? "#9fe870" : (creature?.palette?.accent || "#ffe49a");
+    const count = Math.round((reduced() ? 3 : 8) * intensity);
     for (let i = 0; i < count; i += 1) {
       const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.6;
-      const speed = 60 + Math.random() * 120;
+      const speed = (60 + Math.random() * 120) * intensity;
       sparks.push({
         x: cx + (Math.random() - 0.5) * 30,
         y: cy,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         life: 1,
-        color: creature?.palette?.accent || "#ffe49a"
+        color: sparkColor
       });
     }
-    floaters.push({ x: cx + (Math.random() - 0.5) * 40, y: cy - 30, life: 1, text: "+" });
+    floaters.push({
+      x: cx + (Math.random() - 0.5) * 40,
+      y: cy - 30,
+      life: 1,
+      text: info.text || "+",
+      color: sparkColor,
+      size: 20 + Math.min(12, combo)
+    });
+    if (combo >= 5 && combo % 5 === 0) {
+      floaters.push({ x: cx, y: cy - 66, life: 1.3, text: `Combo x${combo}`, color: "#ffd76a", size: 18 });
+    }
+  }
+
+  // The payoff moment: a big confetti burst, a banner, a flash and a shake when
+  // a life form is finally collected. This is the dopamine hit of the whole loop.
+  function celebrate(label = "", rarity = "Common") {
+    const color = { Legendary: "#ffd34d", Rare: "#5aa9e0", Common: "#7fe08a" }[rarity] || "#7fe08a";
+    celebration = { time: 0, color };
+    if (!reduced()) shakeUntil = Math.max(shakeUntil, t + 0.55);
+    flashCreature = 1;
+    const cx = width / 2;
+    const cy = creatureY();
+    const confettiColors = [color, "#ffffff", "#ff8ad0", "#ffd34d", "#7fe6ff"];
+    const n = reduced() ? 16 : 80;
+    for (let i = 0; i < n; i += 1) {
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.1;
+      const speed = 140 + Math.random() * 320;
+      sparks.push({
+        x: cx + (Math.random() - 0.5) * 40,
+        y: cy - 10,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 60,
+        life: 1.6 + Math.random() * 0.8,
+        decay: 0.85,
+        gravity: 360,
+        confetti: true,
+        spin: Math.random() * Math.PI * 2,
+        size: 3 + Math.random() * 4,
+        color: confettiColors[i % confettiColors.length]
+      });
+    }
+    floaters.push({ x: cx, y: cy - 86, life: 2.2, text: "COLLECTED!", color, size: 34, big: true });
+    if (label) floaters.push({ x: cx, y: cy - 52, life: 2.2, text: label, color: "#ffffff", size: 22, big: true });
+  }
+
+  // Each of the 5 growth stages gets its own little reward: a pop, a sparkle
+  // ring and the new stage name floating up. Keeps every attempt feeling alive.
+  function stageUp(label = "") {
+    const cx = width / 2;
+    const cy = creatureY();
+    flashCreature = Math.max(flashCreature, 0.7);
+    squash = Math.max(squash, 0.85);
+    ripple = 0.001;
+    if (!reduced()) shakeUntil = Math.max(shakeUntil, t + 0.12);
+    const n = reduced() ? 6 : 16;
+    for (let i = 0; i < n; i += 1) {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.2;
+      const sp = 90 + Math.random() * 160;
+      sparks.push({
+        x: cx, y: cy - 6,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30,
+        life: 1.1, decay: 1.2, gravity: 220, confetti: true,
+        spin: Math.random() * Math.PI * 2, size: 2 + Math.random() * 2,
+        color: i % 2 ? "#9fe870" : "#ffe49a"
+      });
+    }
+    if (label) floaters.push({ x: cx, y: cy - 58, life: 1.6, text: label, color: "#bdf2a0", size: 21, big: true });
   }
 
   function discoveryBurst() {
@@ -116,7 +212,15 @@ export function createStage(canvas, { getSettings = () => ({}), onTapCreature = 
   }
 
   function playExtinction(type) {
-    cataclysm = { type: type === "ice_age" ? "ice" : "asteroid", time: 0 };
+    const visual = {
+      asteroid: "asteroid",
+      ice_age: "ice",
+      solar_flare: "solar",
+      supervolcano: "volcano",
+      pandemic: "pandemic",
+      ocean_anoxia: "anoxia"
+    }[type] || "asteroid";
+    cataclysm = { type: visual, time: 0 };
     if (!reduced()) shakeUntil = t + 1.4;
   }
 
@@ -126,6 +230,7 @@ export function createStage(canvas, { getSettings = () => ({}), onTapCreature = 
 
   // Hit test: the creature is a generous central target for one-handed play.
   function hitCreature(clientX, clientY) {
+    if (wildlife.canRender()) return wildlife.hitTest(clientX, clientY);
     const rect = canvas.getBoundingClientRect();
     const x = clientX - rect.left;
     const y = clientY - rect.top;
@@ -150,6 +255,7 @@ export function createStage(canvas, { getSettings = () => ({}), onTapCreature = 
   }
 
   function step(dt) {
+    wildlife.step(dt, t);
     squash = Math.max(0, squash - dt * 4);
     flashCreature = Math.max(0, flashCreature - dt * 2.5);
     if (ripple > 0) { ripple += dt * 2.2; if (ripple > 1) ripple = 0; }
@@ -161,12 +267,15 @@ export function createStage(canvas, { getSettings = () => ({}), onTapCreature = 
     }
     for (let i = sparks.length - 1; i >= 0; i -= 1) {
       const s = sparks[i];
-      s.life -= dt * 1.6;
-      s.vy += 220 * dt;
+      s.life -= dt * (s.decay || 1.6);
+      s.vy += (s.gravity == null ? 220 : s.gravity) * dt;
+      if (s.confetti) s.vx += Math.sin((t + s.spin) * 7) * 26 * dt; // flutter
       s.x += s.vx * dt;
       s.y += s.vy * dt;
+      if (s.spin != null) s.spin += dt * 7;
       if (s.life <= 0) sparks.splice(i, 1);
     }
+    if (celebration) { celebration.time += dt; if (celebration.time > 1.4) celebration = null; }
     for (let i = floaters.length - 1; i >= 0; i -= 1) {
       const f = floaters[i];
       f.life -= dt * 1.1;
@@ -190,10 +299,14 @@ export function createStage(canvas, { getSettings = () => ({}), onTapCreature = 
     }
     ctx.save();
     ctx.translate(ox, oy);
-    drawBackdrop();
-    drawWorldActivity();
-    drawMotes();
-    drawCreature();
+    const illustrated = wildlife.draw({ time: t, pressure });
+    if (!illustrated) {
+      drawBackdrop();
+      drawWorldActivity();
+      drawMotes();
+      drawCreature();
+    }
+    drawCelebration();
     drawSparks();
     drawFloaters();
     drawWorldStress();
@@ -290,42 +403,40 @@ export function createStage(canvas, { getSettings = () => ({}), onTapCreature = 
   }
 
   function drawWorldActivity() {
-    if (totalPopulation <= 0) return;
-    const maxCount = reduced() ? 6 : performance_() ? 10 : 18;
-    const count = Math.min(maxCount, Math.max(2, Math.round(Math.sqrt(totalPopulation) * 2 + diversity)));
-    const aquatic = scene?.name === "Ocean" || scene?.name === "Primordial Sea";
+    if (totalPopulation <= 0 || backgroundSpecies.length === 0) return;
+    const maxCount = reduced() ? 10 : performance_() ? 18 : 34;
+    const count = Math.min(maxCount, Math.max(diversity, Math.round(Math.sqrt(totalPopulation) * 3.4 + diversity)));
     const vitality = 0.18 + karma / 180;
-    const color = creature?.palette?.accent || scene?.light || "#8ff0b3";
+    const totalWeight = backgroundSpecies.reduce((sum, item) => sum + item.population, 0);
     ctx.save();
     for (let i = 0; i < count; i += 1) {
+      let cursor = ((i * 0.61803398875) % 1) * totalWeight;
+      let item = backgroundSpecies[0];
+      for (const candidate of backgroundSpecies) {
+        cursor -= candidate.population;
+        if (cursor <= 0) { item = candidate; break; }
+      }
+      const profile = item.profile;
+      const aquatic = profile.motion === "swim" || scene?.name === "Ocean" || scene?.name === "Primordial Sea";
+      const flying = profile.motion === "fly";
+      const rooted = profile.motion === "sway" || profile.archetype === "flora" || profile.archetype === "city";
       const direction = i % 2 ? 1 : -1;
       const speed = reduced() ? 0 : 10 + (i % 5) * 4;
       const travel = ((i * 137 + t * speed * direction) % (width + 140) + width + 140) % (width + 140);
       const x = direction > 0 ? travel - 70 : width + 70 - travel;
-      const lane = aquatic ? height * (0.28 + (i % 6) * 0.075) : height * (0.66 + (i % 4) * 0.035);
-      const y = lane + Math.sin(t * 0.8 + i * 2.1) * (aquatic ? 12 : 4);
-      const size = 3 + (i % 4) * 1.4 + Math.min(3, activePopulation * 0.12);
+      const lane = flying
+        ? height * (0.22 + (i % 5) * 0.07)
+        : aquatic
+          ? height * (0.28 + (i % 6) * 0.075)
+          : height * (0.67 + (i % 4) * 0.032);
+      const y = lane + Math.sin(t * 0.8 + i * 2.1) * (flying ? 16 : aquatic ? 12 : rooted ? 1 : 4);
+      const size = (3.6 + (i % 4) * 1.15 + Math.min(2.5, Math.sqrt(item.population) * 0.28)) * Math.min(1.2, profile.scale || 1);
       ctx.globalAlpha = vitality * (0.45 + (i % 3) * 0.16);
-      ctx.fillStyle = hexA(color, 0.9);
       ctx.save();
       ctx.translate(x, y);
       ctx.scale(direction, 1);
-      if (aquatic) {
-        ctx.beginPath();
-        ctx.ellipse(0, 0, size * 1.8, size, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.moveTo(-size * 1.5, 0);
-        ctx.lineTo(-size * 2.7, -size);
-        ctx.lineTo(-size * 2.7, size);
-        ctx.closePath();
-        ctx.fill();
-      } else {
-        ctx.beginPath();
-        ctx.arc(0, 0, size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillRect(-size * 1.8, size * 0.6, size * 3.4, size * 0.6);
-      }
+      const drawer = ARCHETYPES[profile.archetype] || ARCHETYPES.particle;
+      drawer(ctx, size, profile.palette, t * 2 + i, profile, 0);
       ctx.restore();
     }
     ctx.restore();
@@ -362,7 +473,7 @@ export function createStage(canvas, { getSettings = () => ({}), onTapCreature = 
     if (!s.floor || s.floor === "none") return;
     const floorY = height * 0.78;
     const colors = {
-      sand: "#caa86a", grass: "#2f6f3a", mud: "#5a4a2e", city: "#3a3458"
+      sand: "#caa86a", grass: "#2f6f3a", mud: "#5a4a2e", city: "#3a3458", snow: "#dfeef5", rock: "#5a5f6a"
     };
     const c = colors[s.floor] || "#3a3a3a";
     const grd = ctx.createLinearGradient(0, floorY, 0, height);
@@ -448,6 +559,20 @@ export function createStage(canvas, { getSettings = () => ({}), onTapCreature = 
       ctx.restore();
     }
 
+    // Evolution invitation: a soft golden aura pulses when a new species can be
+    // chosen, drawing the eye toward the Evolve menu without blocking play.
+    if (evolveReady && !cataclysm && !worldEnded) {
+      const pulse = 0.5 + 0.5 * Math.sin(t * 3);
+      ctx.save();
+      ctx.globalAlpha = 0.2 + pulse * 0.3;
+      ctx.strokeStyle = "#ffd76a";
+      ctx.lineWidth = 2 + pulse * 1.4;
+      ctx.beginPath();
+      ctx.arc(cx, cy, size * (1.18 + pulse * 0.14), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     // Name tag.
     ctx.save();
     ctx.globalAlpha = 0.85;
@@ -466,13 +591,25 @@ export function createStage(canvas, { getSettings = () => ({}), onTapCreature = 
 
   function drawSparks() {
     ctx.save();
-    ctx.globalCompositeOperation = "lighter";
+    ctx.imageSmoothingEnabled = false;
     for (const s of sparks) {
-      ctx.globalAlpha = Math.max(0, s.life);
+      ctx.globalAlpha = Math.max(0, Math.min(1, s.life));
       ctx.fillStyle = s.color;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, 2.4, 0, Math.PI * 2);
-      ctx.fill();
+      if (s.confetti) {
+        // Solid rotating pixel squares — reads as celebratory confetti.
+        const sz = Math.round(s.size || 4);
+        ctx.save();
+        ctx.translate(Math.round(s.x), Math.round(s.y));
+        ctx.rotate(s.spin || 0);
+        ctx.fillRect(-sz / 2, -sz / 2, sz, sz);
+        ctx.restore();
+      } else {
+        // Pixel sparkle: a small additive square instead of a soft circle.
+        ctx.globalCompositeOperation = "lighter";
+        const sz = Math.round(s.size || 3);
+        ctx.fillRect(Math.round(s.x - sz / 2), Math.round(s.y - sz / 2), sz, sz);
+        ctx.globalCompositeOperation = "source-over";
+      }
     }
     ctx.restore();
   }
@@ -481,12 +618,54 @@ export function createStage(canvas, { getSettings = () => ({}), onTapCreature = 
     ctx.save();
     ctx.textAlign = "center";
     for (const f of floaters) {
-      ctx.globalAlpha = Math.max(0, f.life);
-      ctx.fillStyle = "#ffe49a";
-      ctx.font = "700 20px system-ui, sans-serif";
-      ctx.fillText(f.text, f.x, f.y);
+      ctx.globalAlpha = Math.max(0, Math.min(1, f.life));
+      const weight = f.big ? 900 : 700;
+      ctx.font = `${weight} ${f.size || 20}px system-ui, sans-serif`;
+      // Pop-in scale: text springs up then settles, for a juicy entrance.
+      const age = (f.startLife || (f.startLife = f.life)) - f.life;
+      const pop = f.big ? 1 + Math.max(0, 0.35 - age) : 1;
+      ctx.save();
+      ctx.translate(f.x, f.y);
+      ctx.scale(pop, pop);
+      // dark outline for readability over any backdrop
+      ctx.lineWidth = f.big ? 5 : 3;
+      ctx.strokeStyle = "rgba(8,12,10,0.85)";
+      ctx.lineJoin = "round";
+      ctx.strokeText(f.text, 0, 0);
+      ctx.fillStyle = f.color || "#ffe49a";
+      ctx.fillText(f.text, 0, 0);
+      ctx.restore();
     }
     ctx.restore();
+  }
+
+  function drawCelebration() {
+    if (!celebration) return;
+    const k = celebration.time;
+    // a quick bright flash that fades
+    const flash = Math.max(0, 0.5 - k) ;
+    if (flash > 0) {
+      ctx.save();
+      ctx.globalAlpha = flash;
+      ctx.fillStyle = celebration.color;
+      ctx.globalCompositeOperation = "lighter";
+      ctx.fillRect(0, 0, width, height);
+      ctx.restore();
+    }
+    // an expanding ring
+    const cx = width / 2;
+    const cy = creatureY();
+    const r = k * 520;
+    if (k < 0.9) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, 0.6 - k);
+      ctx.strokeStyle = celebration.color;
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   function drawCataclysm() {
@@ -523,7 +702,7 @@ export function createStage(canvas, { getSettings = () => ({}), onTapCreature = 
         ctx.arc(width * 0.5, height * 0.62, shock, 0, Math.PI * 2);
         ctx.stroke();
       }
-    } else {
+    } else if (cataclysm.type === "ice") {
       // Ice age: frost creeps inward from every edge and the world dims to blue.
       const p = Math.min(1, k / 1.8);
       ctx.save();
@@ -545,6 +724,28 @@ export function createStage(canvas, { getSettings = () => ({}), onTapCreature = 
       ctx.fillRect(0, 0, inset, height);
       ctx.fillRect(width - inset, 0, inset, height);
       ctx.restore();
+    } else {
+      const p = Math.min(1, k / 1.8);
+      const styles = {
+        solar: [255, 120, 90],
+        volcano: [120, 45, 25],
+        pandemic: [110, 190, 90],
+        anoxia: [20, 45, 70]
+      };
+      const [r, g, b] = styles[cataclysm.type] || styles.volcano;
+      ctx.save();
+      ctx.fillStyle = `rgba(${r},${g},${b},${0.18 + p * 0.42})`;
+      ctx.fillRect(0, 0, width, height);
+      ctx.globalCompositeOperation = cataclysm.type === "solar" ? "lighter" : "source-over";
+      ctx.strokeStyle = `rgba(${Math.min(255, r + 80)},${Math.min(255, g + 80)},${Math.min(255, b + 80)},${0.75 * p})`;
+      ctx.lineWidth = cataclysm.type === "pandemic" ? 3 : 7;
+      for (let i = 0; i < 7; i += 1) {
+        const radius = (30 + i * 70) * p;
+        ctx.beginPath();
+        ctx.arc(width * 0.5, height * 0.52, radius, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
     }
   }
 
@@ -560,14 +761,16 @@ export function createStage(canvas, { getSettings = () => ({}), onTapCreature = 
   canvas.addEventListener("pointerdown", event => {
     if (worldEnded || cataclysm) return;
     if (hitCreature(event.clientX, event.clientY)) {
-      tap();
-      onTapCreature();
+      // Run the action first so the floating number reflects what actually
+      // happened (grew a population, or catalyzed Energy, or was rejected).
+      const info = onTapCreature() || {};
+      tap(info);
     }
   });
   window.addEventListener("resize", resize);
   resize();
 
-  return { update, tap, discoveryBurst, playExtinction, clearExtinction, start, stop, resize };
+  return { update, tap, celebrate, stageUp, discoveryBurst, playExtinction, clearExtinction, start, stop, resize };
 }
 
 // ---------------------------------------------------------------------------

@@ -7,6 +7,13 @@
       "runtimeArgs": ["-m", "http.server", "4180", "-d", "Prototype"],
       "port": 4180,
       "autoPort": false
+    },
+    {
+      "name": "prototype-verify",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "4192", "-d", "Prototype"],
+      "port": 4192,
+      "autoPort": false
     }
   ]
 }

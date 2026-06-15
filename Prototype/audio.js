@@ -120,6 +120,32 @@ export function createAudio(getSettings) {
       tone({ frequency: 523, duration: 0.6, gain: 0.12 });
       tone({ frequency: 784, duration: 0.9, gain: 0.12, delay: 0.12 });
       tone({ frequency: 1046, duration: 1.2, gain: 0.1, delay: 0.24 });
+    },
+    // Quick satisfying pop on a creature tap; pitch rises with the combo.
+    pop(combo = 1) {
+      const base = 520 + Math.min(12, combo) * 28;
+      tone({ frequency: base, endFrequency: base * 1.5, duration: 0.06, type: "square", gain: 0.06 });
+      vibrate(8);
+    },
+    // Pleasant rising chime each time the life form grows a stage (pitch climbs
+    // with the stage so the 1→5 progression sounds like it's building.)
+    stageUp(index = 1) {
+      const f = 392 + Math.min(5, index) * 66;
+      tone({ frequency: f, endFrequency: f * 1.25, duration: 0.12, type: "sine", gain: 0.11 });
+      tone({ frequency: f * 1.5, duration: 0.16, gain: 0.08, delay: 0.07 });
+      vibrate(12);
+    },
+    // Triumphant rising fanfare when a life form is collected.
+    collect(legendary = false) {
+      tone({ frequency: 523, duration: 0.12, gain: 0.16 });
+      tone({ frequency: 659, duration: 0.12, gain: 0.16, delay: 0.1 });
+      tone({ frequency: 784, duration: 0.16, gain: 0.17, delay: 0.2 });
+      tone({ frequency: 1046, duration: 0.45, gain: 0.18, delay: 0.32 });
+      if (legendary) {
+        tone({ frequency: 1318, duration: 0.55, gain: 0.15, delay: 0.46 });
+        tone({ frequency: 1568, duration: 0.7, gain: 0.12, delay: 0.6 });
+      }
+      vibrate(legendary ? [30, 40, 60, 40, 90] : [25, 35, 55]);
     }
   };
 }

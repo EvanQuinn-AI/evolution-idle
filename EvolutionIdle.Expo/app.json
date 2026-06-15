@@ -20,9 +20,6 @@
         }
       }
     },
-    "android": {
-      "usesCleartextTraffic": true
-    },
     "scheme": "evolutionidle"
   }
 }
