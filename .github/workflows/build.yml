@@ -1,9 +1,9 @@
 name: Platform Builds
 
+
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "30 2 * * *"
+
 
 jobs:
   build-windows-android:
@@ -30,6 +30,7 @@ jobs:
         with:
           name: ${{ matrix.target }}
           path: artifacts
+
 
   build-apple:
     runs-on: [self-hosted, macOS, evolution-idle-build]
